@@ -36,16 +36,20 @@
 #include <sys/types.h>    /* ssize_t pid_t */
 #include <sys/time.h>     /* struct timeval gettimeofday(2) */
 #include <sys/stat.h>     /* struct stat stat(2) */
-#include <sys/socket.h>   /* AF_INET AF_INET6 */
-#include <sys/resource.h> /* RUSAGE_SELF struct rusage getrusage(2) */
-#include <sys/utsname.h>  /* struct utsname uname(3) */
+#ifndef _WIN32
+#    include <sys/socket.h>   /* AF_INET AF_INET6 */
+#    include <sys/resource.h> /* RUSAGE_SELF struct rusage getrusage(2) */
+#endif
 #include <fcntl.h>        /* O_RDONLY O_CLOEXEC open(2) */
 #include <unistd.h>       /* close(2) getpid(2) */
-#include <netinet/in.h>   /* struct in_addr struct in6_addr */
-#include <arpa/inet.h>    /* inet_pton(3) */
+#ifndef _WIN32
+#    include <netinet/in.h>   /* struct in_addr struct in6_addr */
+#    include <arpa/inet.h>    /* inet_pton(3) */
+#endif
 #include <pthread.h>      /* pthread_mutex_init(3) pthread_mutex_lock(3) pthread_mutex_unlock(3) */
-#include <dlfcn.h>        /* dladdr(3) dlopen(3) */
-
+#ifndef _WIN32
+#    include <dlfcn.h>        /* dladdr(3) dlopen(3) */
+#endif
 #if __APPLE__
 #include <mach/mach_time.h> /* mach_absolute_time() */
 #endif
@@ -931,8 +935,11 @@ static const char *auxL_pusherror(lua_State *L, int error, const char *fun) {
 		}
 	} else if (error == auxL_EDYLD) {
 		const char *const fmt = (fun)? "%s: %s" : "%.0s%s";
-
+#ifndef _WIN32
 		return lua_pushfstring(L, fmt, (fun)? fun : "", dlerror());
+#else 
+		return lua_pushstring(L, "should not happen ");
+#endif
 	} else {
 		const char *const fmt = (fun)? "%s: %s" : "%.0s%s";
 
@@ -3649,7 +3656,7 @@ int luaopen__openssl_ec_group(lua_State *L) {
  * X509_NAME - openssl.x509.name
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
+#ifndef _WIN32
 static X509_NAME *xn_dup(lua_State *L, X509_NAME *name) {
 	X509_NAME **ud = prepsimple(L, X509_NAME_CLASS);
 
@@ -3846,7 +3853,7 @@ int luaopen__openssl_x509_name(lua_State *L) {
 
 	return 1;
 } /* luaopen__openssl_x509_name() */
-
+#endif
 
 /*
  * GENERAL_NAMES - openssl.x509.altname
@@ -3902,7 +3909,7 @@ static int gn_checktype(lua_State *L, int index) {
 	return luaL_error(L, "%s: invalid type", type), 0;
 } /* gn_checktype() */
 
-
+#ifndef _WIN32
 static int gn_add(lua_State *L) {
 	GENERAL_NAMES *gens = checksimple(L, 1, X509_GENS_CLASS);
 	int type = gn_checktype(L, 2);
@@ -4100,7 +4107,7 @@ int luaopen__openssl_x509_altname(lua_State *L) {
 
 	return 1;
 } /* luaopen__openssl_x509_altname() */
-
+#endif
 
 /*
  * X509_EXTENSION - openssl.x509.extension
@@ -4711,7 +4718,7 @@ static int xc_setLifetime(lua_State *L) {
 	return 1;
 } /* xc_setLifetime() */
 
-
+#ifndef _WIN32
 static int xc_getIssuer(lua_State *L) {
 	X509 *crt = checksimple(L, 1, X509_CERT_CLASS);
 	X509_NAME *name;
@@ -4762,7 +4769,7 @@ static int xc_setSubject(lua_State *L) {
 
 	return 1;
 } /* xc_setSubject() */
-
+#endif
 
 static void xc_setCritical(X509 *crt, int nid, _Bool yes) {
 	X509_EXTENSION *ext;
@@ -5301,7 +5308,7 @@ static int xc__gc(lua_State *L) {
 	return 0;
 } /* xc__gc() */
 
-
+#ifndef _WIN32
 static const auxL_Reg xc_methods[] = {
 	{ "getVersion",    &xc_getVersion },
 	{ "setVersion",    &xc_setVersion },
@@ -5340,6 +5347,7 @@ static const auxL_Reg xc_methods[] = {
 	{ "tostring",      &xc__tostring },
 	{ NULL,            NULL },
 };
+#endif
 
 static const auxL_Reg xc_metatable[] = {
 	{ "__tostring", &xc__tostring },
@@ -5436,7 +5444,7 @@ static int xr_setVersion(lua_State *L) {
 	return 1;
 } /* xr_setVersion() */
 
-
+#ifndef _WIN32
 static int xr_getSubject(lua_State *L) {
 	X509_REQ *crt = checksimple(L, 1, X509_CSR_CLASS);
 	X509_NAME *name;
@@ -5461,6 +5469,7 @@ static int xr_setSubject(lua_State *L) {
 
 	return 1;
 } /* xr_setSubject() */
+#endif
 
 
 static int xr_getPublicKey(lua_State *L) {
@@ -5537,6 +5546,7 @@ static int xr__gc(lua_State *L) {
 	return 0;
 } /* xr__gc() */
 
+#ifndef _WIN32
 static const auxL_Reg xr_methods[] = {
 	{ "getVersion",   &xr_getVersion },
 	{ "setVersion",   &xr_setVersion },
@@ -5548,6 +5558,7 @@ static const auxL_Reg xr_methods[] = {
 	{ "tostring",     &xr__tostring },
 	{ NULL,           NULL },
 };
+#endif
 
 static const auxL_Reg xr_metatable[] = {
 	{ "__tostring", &xr__tostring },
@@ -5722,7 +5733,7 @@ error:
 	return auxL_error(L, auxL_EOPENSSL, "x509.crl:setNextUpdate");
 } /* xx_setNextUpdate() */
 
-
+#ifndef _WIN32
 static int xx_getIssuer(lua_State *L) {
 	X509_CRL *crl = checksimple(L, 1, X509_CRL_CLASS);
 	X509_NAME *name;
@@ -5747,7 +5758,7 @@ static int xx_setIssuer(lua_State *L) {
 
 	return 1;
 } /* xx_setIssuer() */
-
+#endif
 
 static int xx_add(lua_State *L) {
 	X509_CRL *crl = checksimple(L, 1, X509_CRL_CLASS);
@@ -5928,6 +5939,7 @@ static int xx__gc(lua_State *L) {
 	return 0;
 } /* xx__gc() */
 
+#ifndef _WIN32
 static const auxL_Reg xx_methods[] = {
 	{ "getVersion",     &xx_getVersion },
 	{ "setVersion",     &xx_setVersion },
@@ -5946,6 +5958,7 @@ static const auxL_Reg xx_methods[] = {
 	{ "tostring",       &xx__tostring },
 	{ NULL,             NULL },
 };
+#endif
 
 static const auxL_Reg xx_metatable[] = {
 	{ "__tostring", &xx__tostring },
@@ -7716,7 +7729,7 @@ static struct randL_state *randL_getstate(lua_State *L) {
 } /* randL_getstate() */
 
 #ifndef HAVE_SYS_SYSCTL_H
-#define HAVE_SYS_SYSCTL_H (!defined __sun && !defined _AIX && !defined __ANDROID__)
+#define HAVE_SYS_SYSCTL_H (!defined __sun && !defined _AIX && !defined __ANDROID__ && !defined _WIN32)
 #endif
 
 #if HAVE_SYS_SYSCTL_H
@@ -7734,7 +7747,7 @@ static struct randL_state *randL_getstate(lua_State *L) {
 #ifndef HAVE_KERN_ARND
 #define HAVE_KERN_ARND (defined KERN_ARND)
 #endif
-
+#ifndef _WIN32
 static int randL_stir(struct randL_state *st, unsigned rqstd) {
 	unsigned count = 0;
 	int error;
@@ -7847,7 +7860,6 @@ static void randL_checkpid(struct randL_state *st) {
 		(void)randL_stir(st, 16);
 } /* randL_checkpid() */
 
-
 static int rand_stir(lua_State *L) {
 	int error = randL_stir(randL_getstate(L), auxL_optunsigned(L, 1, 16, 0, UINT_MAX));
 
@@ -7921,6 +7933,7 @@ static unsigned long long rand_llu(lua_State *L) {
 
 	return llu;
 } /* rand_llu() */
+
 
 /*
  * The following algorithm for rand_uniform() is taken from OpenBSD's
@@ -8024,7 +8037,7 @@ static int rand_uniform(lua_State *L) {
 	return 1;
 } /* rand_uniform() */
 
-
+#ifndef _WIN32
 static const auxL_Reg rand_globals[] = {
 	{ "stir",    &rand_stir },
 	{ "add",     &rand_add },
@@ -8033,6 +8046,7 @@ static const auxL_Reg rand_globals[] = {
 	{ "uniform", &rand_uniform },
 	{ NULL,      NULL },
 };
+#endif
 
 int luaopen__openssl_rand(lua_State *L) {
 	struct randL_state *st;
@@ -8045,7 +8059,7 @@ int luaopen__openssl_rand(lua_State *L) {
 
 	return 1;
 } /* luaopen__openssl_rand() */
-
+#endif
 
 /*
  * DES - openssl.des
@@ -8118,6 +8132,7 @@ static void mt_lock(int mode, int type, const char *file NOTUSED, int line NOTUS
 #include <lwp.h> /* _lwp_self(2) */
 #endif
 
+#ifndef _WIN32
 static unsigned long mt_gettid(void) {
 #if __APPLE__
 	return pthread_mach_thread_np(pthread_self());
@@ -8131,7 +8146,6 @@ static unsigned long mt_gettid(void) {
 	return id;
 #elif __NetBSD__
 	return _lwp_self();
-#else
 	/*
 	 * pthread_t is an integer on Solaris and Linux, an unsigned integer
 	 * on AIX, and a unique pointer on OpenBSD.
@@ -8139,6 +8153,7 @@ static unsigned long mt_gettid(void) {
 	return (unsigned long)pthread_self();
 #endif
 } /* mt_gettid() */
+#endif //_WIN32
 
 static int mt_init(void) {
 	static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -8180,11 +8195,12 @@ static int mt_init(void) {
 		bound = 1;
 	}
 
+#ifndef _WIN32
 	if (!CRYPTO_get_id_callback()) {
 		CRYPTO_set_id_callback(&mt_gettid);
 		bound = 1;
 	}
-
+#endif
 	if (bound && (error = dl_anchor()))
 		goto epilog;
 
@@ -8235,6 +8251,7 @@ static void initall(lua_State *L) {
 #ifndef OPENSSL_NO_EC
 	auxL_addclass(L, EC_GROUP_CLASS, ecg_methods, ecg_metatable, 0);
 #endif
+#ifndef _WIN32
 	auxL_addclass(L, X509_NAME_CLASS, xn_methods, xn_metatable, 0);
 	auxL_addclass(L, X509_GENS_CLASS, gn_methods, gn_metatable, 0);
 	auxL_addclass(L, X509_EXT_CLASS, xe_methods, xe_metatable, 0);
@@ -8243,9 +8260,12 @@ static void initall(lua_State *L) {
 	auxL_addclass(L, X509_CRL_CLASS, xx_methods, xx_metatable, 0);
 	auxL_addclass(L, X509_CHAIN_CLASS, xl_methods, xl_metatable, 0);
 	auxL_addclass(L, X509_STORE_CLASS, xs_methods, xs_metatable, 0);
+#endif
 	auxL_addclass(L, PKCS12_CLASS, p12_methods, p12_metatable, 0);
+#ifndef _WIN32
 	auxL_addclass(L, SSL_CTX_CLASS, sx_methods, sx_metatable, 0);
 	auxL_addclass(L, SSL_CLASS, ssl_methods, ssl_metatable, 0);
+#endif
 	auxL_addclass(L, DIGEST_CLASS, md_methods, md_metatable, 0);
 	auxL_addclass(L, HMAC_CLASS, hmac_methods, hmac_metatable, 0);
 	auxL_addclass(L, CIPHER_CLASS, cipher_methods, cipher_metatable, 0);
